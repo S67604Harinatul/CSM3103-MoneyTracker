@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Page</title>
+    <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js"></script>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    <style>
+        header,
+        footer {
+            background-color: #0a73d6;
+            color: white;
+            text-align: center;
+            padding: 1em 0;
+            position: fixed;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+        }
+
+        header {
+            top: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        footer {
+            bottom: 0;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        header h1,
+        footer nav {
+            margin: 0;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            margin: 0px;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Money Tracker</h1>
+        <button onclick="navigateTo('main.html')">Bell</button>
+    </header>
+    <div class="container mt-5">
+        <div class="row">
+            <div class="col-md-6">
+                <h3>Add Expenses</h3>
+                <div class="list-group">
+                    <button type="button" class="list-group-item list-group-item-action"
+                        data-category="Food and Beverage">Food and Beverage</button>
+                    <button type="button" class="list-group-item list-group-item-action" data-category="Shopping">Shopping</button>
+                    <button type="button" class="list-group-item list-group-item-action"
+                        data-category="Transportation">Transportation</button>
+                    <button type="button" class="list-group-item list-group-item-action"
+                        data-category="Health and Beauty">Health and Beauty</button>
+                    <button type="button" class="list-group-item list-group-item-action" data-category="Medical">Medical</button>
+                    <button type="button" class="list-group-item list-group-item-action" data-category="Others">Others</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for adding expenses -->
+    <div class="modal fade" id="expenseModal" tabindex="-1" role="dialog" aria-labelledby="expenseModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="expenseModalLabel">Add Expense</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <input type="date" id="expenseDate" class="form-control mb-3" required>
+                    <input type="number" placeholder="Amount" id="expenseAmount" class="form-control mb-3" required>
+                    <button type="button" class="btn btn-primary btn-block" id="saveExpenseBtn">Save Expense</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics.js";
+        import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCiSqb9X5acG4Ck-gfie9bHt0p7xc5RqUE",
+            authDomain: "csm3103-lab6t3.firebaseapp.com",
+            databaseURL: "https://csm3103-lab6t3-default-rtdb.firebaseio.com",
+            projectId: "csm3103-lab6t3",
+            storageBucket: "csm3103-lab6t3.appspot.com",
+            messagingSenderId: "168520757926",
+            appId: "1:168520757926:web:28837ab77dcd7ff1127a67",
+            measurementId: "G-8MR7SPVNW9"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase();
+
+        // Function to save expense data to Firebase
+        function saveExpense() {
+            const category = $('#expenseModal').data('category');
+            const date = $('#expenseDate').val();
+            const amount = $('#expenseAmount').val();
+
+            if (date && amount) {
+                const username = sessionStorage.getItem('username');
+                if (!username) {
+                    alert("User is not logged in");
+                    window.location.href = 'login.html';
+                    return;
+                }
+
+                const newExpenseRef = generateUniqueID(); // Function to generate a unique ID (e.g., UUID or timestamp-based ID)
+
+                // Set the data directly at the generated key
+                set(ref(db, `ListOfUsers/${username}/expenses/${category}/${newExpenseRef}`), {
+                    date: date,
+                    amount: amount
+                }).then(() => {
+                    alert("Expense saved successfully!");
+                    $('#expenseModal').modal('hide');
+                }).catch((error) => {
+                    alert("Error saving expense: " + error);
+                });
+            } else {
+                alert("Please fill in all fields.");
+            }
+        }
+
+        // Function to generate a unique ID (replace with your preferred method)
+        function generateUniqueID() {
+            // Example: Using timestamp as ID
+            return Date.now().toString();
+        }
+
+        // Navigate function
+        window.navigateTo = function(page) {
+            window.location.href = page;
+        };
+
+        // Event listener for clicking on expense category buttons
+        $('.list-group-item').click(function() {
+            const category = $(this).data('category');
+            $('#expenseModalLabel').text(`Add ${category} Expense`);
+            $('#expenseModal').data('category', category).modal('show');
+        });
+
+        // Event listener for Save Expense button
+        $('#saveExpenseBtn').click(saveExpense);
+
+    </script>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.4.1/dist/js/bootstrap.bundle.min.js"></script>
+
+    <footer>
+        <nav>
+            <button onclick="navigateTo('charts.html')">Charts</button>
+            <button onclick="navigateTo('add.html')">Add</button>
+            <button onclick="navigateTo('reports.html')">Reports</button>
+        </nav>
+    </footer>
+</body>
+
+</html>

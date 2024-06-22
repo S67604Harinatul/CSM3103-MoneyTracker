@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Charts</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.4.1/dist/css/bootstrap.min.css"
+        integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh"
+        crossorigin="anonymous">
+    <!-- Include Chart.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Firebase JavaScript Modular SDK -->
+    <script type="module">
+        // Import Firebase Modular SDK
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCiSqb9X5acG4Ck-gfie9bHt0p7xc5RqUE",
+            authDomain: "csm3103-lab6t3.firebaseapp.com",
+            databaseURL: "https://csm3103-lab6t3-default-rtdb.firebaseio.com",
+            projectId: "csm3103-lab6t3",
+            storageBucket: "csm3103-lab6t3.appspot.com",
+            messagingSenderId: "168520757926",
+            appId: "1:168520757926:web:28837ab77dcd7ff1127a67",
+            measurementId: "G-8MR7SPVNW9"
+        };
+
+        // Initialize Firebase
+        const firebaseApp = initializeApp(firebaseConfig);
+        const db = getDatabase(firebaseApp);
+
+        // Function to fetch total expenses for the selected year and month from Firebase
+        async function fetchTotalExpenses(year, month) {
+            try {
+                const snapshot = await get(ref(db, 'ListOfUsers'));
+                const users = snapshot.val();
+
+                if (!users) {
+                    console.error('No users found in database');
+                    return null;
+                }
+
+                // Calculate total expenses for the selected year and month
+                let totalExpenses = {};
+
+                // Iterate through each user
+                Object.keys(users).forEach(username => {
+                    const user = users[username];
+                    if (user.expenses) {
+                        // Iterate through categories of expenses
+                        Object.keys(user.expenses).forEach(category => {
+                            // Iterate through expenses in the selected category
+                            Object.keys(user.expenses[category]).forEach(expenseKey => {
+                                const expense = user.expenses[category][expenseKey];
+                                const expenseDate = new Date(expense.date);
+                                const expenseYear = expenseDate.getFullYear();
+                                const expenseMonth = expenseDate.getMonth() + 1; // getMonth() returns 0-based month
+                                
+                                // Check if expense matches the selected year and month
+                                if (expenseYear === year && expenseMonth === parseInt(month)) {
+                                    if (totalExpenses[category]) {
+                                        totalExpenses[category] += parseFloat(expense.amount);
+                                    } else {
+                                        totalExpenses[category] = parseFloat(expense.amount);
+                                    }
+                                }
+                            });
+                        });
+                    }
+                });
+
+                return totalExpenses;
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                return null;
+            }
+        }
+
+        // Function to generate pie chart based on fetched total expenses
+        async function generatePieChart() {
+            const year = document.getElementById('selectYear').value;
+            const month = document.getElementById('selectMonth').value;
+
+            const totalExpenses = await fetchTotalExpenses(parseInt(year), month);
+
+            if (!totalExpenses) {
+                console.error('No data fetched');
+                return;
+            }
+
+            const categories = Object.keys(totalExpenses);
+            const amounts = Object.values(totalExpenses);
+
+            // Calculate total amount for percentage calculation
+            const totalAmount = amounts.reduce((acc, curr) => acc + curr, 0);
+
+            // Calculate percentages
+            const percentages = amounts.map(amount => ((amount / totalAmount) * 100).toFixed(2));
+
+            // Use Chart.js to create the pie chart
+            const ctx = document.getElementById('expenseChart').getContext('2d');
+            const myPieChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: categories,
+                    datasets: [{
+                        label: 'Expense Distribution',
+                        data: amounts,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.6)',
+                            'rgba(54, 162, 235, 0.6)',
+                            'rgba(255, 206, 86, 0.6)',
+                            'rgba(75, 192, 192, 0.6)',
+                            'rgba(153, 102, 255, 0.6)',
+                            'rgba(255, 159, 64, 0.6)',
+                            // Add more colors if you have more categories
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: `Expense Distribution for ${month}/${year}`
+                        },
+                        tooltips: {
+                            callbacks: {
+                                label: (tooltipItem, data) => {
+                                    const dataset = data.datasets[tooltipItem.datasetIndex];
+                                    const total = dataset.data.reduce((acc, curr) => acc + curr);
+                                    const currentValue = dataset.data[tooltipItem.index];
+                                    const percentage = ((currentValue / total) * 100).toFixed(2);
+                                    return `${data.labels[tooltipItem.index]}: $${currentValue} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Navigate function
+        window.navigateTo = function(page) {
+            window.location.href = page;
+        };
+
+        // DOMContentLoaded event listener to ensure the DOM is fully loaded before binding events
+        document.addEventListener('DOMContentLoaded', () => {
+            // Bind generatePieChart function to the button click event
+            const generateButton = document.getElementById('generateButton');
+            generateButton.addEventListener('click', generatePieChart);
+        });
+    </script>
+<style>
+    header,
+    footer {
+        background-color: #0a73d6;
+        color: white;
+        text-align: center;
+        padding: 1em 0;
+        position: fixed;
+        left: 0;
+        width: 100%;
+        z-index: 1000;
+    }
+
+    header {
+        top: 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    footer {
+        bottom: 0;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+    }
+
+    header h1,
+    footer nav {
+        margin: 0;
+    }
+
+    body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        width: 100vw;
+        margin: 0px;
+    }
+</style>
+</head>
+
+<body>
+    <header>
+        <h1>Money Tracker</h1>
+        <button onclick="navigateTo('main.html')">Bell</button>
+    </header>
+    <div class="container mt-5">
+        <h3>Expense Distribution</h3>
+        <div class="form-inline mb-3">
+            <label for="selectYear" class="mr-2">Select Year:</label>
+            <select id="selectYear" class="form-control mr-2">
+                <option value="2024">2024</option>
+                <option value="2025">2025</option>
+                <!-- Add more years as needed -->
+            </select>
+            <label for="selectMonth" class="mr-2">Select Month:</label>
+            <select id="selectMonth" class="form-control mr-2">
+                <option value="01">January</option>
+                <option value="02">February</option>
+                <option value="03">March</option>
+                <option value="04">April</option>
+                <option value="05">May</option>
+                <option value="06">June</option>
+                <option value="07">July</option>
+                <option value="08">August</option>
+                <option value="09">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+            </select>
+            <!-- Assign an id to the button for easier event binding -->
+            <button id="generateButton" class="btn btn-primary">Generate Chart</button>
+        </div>
+        <div class="chart-container" style="position: relative; height:400px; width:80vw">
+            <canvas id="expenseChart"></canvas>
+        </div>
+    </div>
+
+    <footer>
+        <nav>
+            <button onclick="navigateTo('charts.html')">Charts</button>
+            <button onclick="navigateTo('add.html')">Add</button>
+            <button onclick="navigateTo('reports.html')">Reports</button>
+        </nav>
+    </footer>
+</body>
+
+</html>

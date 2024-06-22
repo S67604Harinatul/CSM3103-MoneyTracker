@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.4.1/dist/css/bootstrap.min.css"
+        integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh"
+        crossorigin="anonymous">
+    <!-- Firebase JavaScript Modular SDK -->
+    <script type="module">
+        // Import Firebase Modular SDK
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCiSqb9X5acG4Ck-gfie9bHt0p7xc5RqUE",
+            authDomain: "csm3103-lab6t3.firebaseapp.com",
+            databaseURL: "https://csm3103-lab6t3-default-rtdb.firebaseio.com",
+            projectId: "csm3103-lab6t3",
+            storageBucket: "csm3103-lab6t3.appspot.com",
+            messagingSenderId: "168520757926",
+            appId: "1:168520757926:web:28837ab77dcd7ff1127a67",
+            measurementId: "G-8MR7SPVNW9"
+        };
+
+        // Initialize Firebase
+        const firebaseApp = initializeApp(firebaseConfig);
+        const db = getDatabase(firebaseApp);
+
+        // Function to fetch total expenses for the selected year and month from Firebase
+        async function fetchTotalExpenses(year, month) {
+            try {
+                const snapshot = await get(ref(db, 'ListOfUsers'));
+                const users = snapshot.val();
+
+                if (!users) {
+                    console.error('No users found in database');
+                    return null;
+                }
+
+                // Calculate total expenses and category-wise totals for the selected year and month
+                let totalExpenses = 0;
+                let categoryTotals = {
+                    'Food and Beverage': 0,
+                    'Shopping': 0,
+                    'Transportation': 0,
+                    'Health and Beauty': 0,
+                    'Medical': 0,
+                    'Others': 0
+                };
+
+                // Iterate through each user
+                Object.keys(users).forEach(username => {
+                    const user = users[username];
+                    if (user.expenses) {
+                        // Iterate through categories of expenses
+                        Object.keys(user.expenses).forEach(category => {
+                            // Iterate through expenses in the selected category
+                            Object.keys(user.expenses[category]).forEach(expenseKey => {
+                                const expense = user.expenses[category][expenseKey];
+                                const expenseDate = new Date(expense.date);
+                                const expenseYear = expenseDate.getFullYear();
+                                const expenseMonth = expenseDate.getMonth() + 1; // getMonth() returns 0-based month
+                                
+                                // Check if expense matches the selected year and month
+                                if (expenseYear === year && expenseMonth === parseInt(month)) {
+                                    totalExpenses += parseFloat(expense.amount);
+                                    categoryTotals[category] += parseFloat(expense.amount);
+                                }
+                            });
+                        });
+                    }
+                });
+
+                return { totalExpenses, categoryTotals };
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                return null;
+            }
+        }
+
+        // Function to generate report based on fetched total expenses
+        async function generateReport() {
+            const year = document.getElementById('selectYear').value;
+            const month = document.getElementById('selectMonth').value;
+
+            const result = await fetchTotalExpenses(parseInt(year), month);
+
+            if (!result) {
+                console.error('No data fetched');
+                return;
+            }
+
+            const { totalExpenses, categoryTotals } = result;
+
+            // Display the report in a designated <div>
+            const reportContainer = document.getElementById('reportContainer');
+            reportContainer.innerHTML = `
+                <h3>Report for ${month}/${year}</h3>
+                <p>Total Expenses: RM${totalExpenses.toFixed(2)}</p>
+                <h4>Category-wise Expenses:</h4>
+                <ul>
+                    <li>Food and Beverage: RM${categoryTotals['Food and Beverage'].toFixed(2)}</li>
+                    <li>Shopping: RM${categoryTotals['Shopping'].toFixed(2)}</li>
+                    <li>Transportation: RM${categoryTotals['Transportation'].toFixed(2)}</li>
+                    <li>Health and Beauty: RM${categoryTotals['Health and Beauty'].toFixed(2)}</li>
+                    <li>Medical: RM${categoryTotals['Medical'].toFixed(2)}</li>
+                    <li>Others: RM${categoryTotals['Others'].toFixed(2)}</li>
+                </ul>
+            `;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Bind generateReport function to the button click event
+            const generateButton = document.getElementById('generateButton');
+            generateButton.addEventListener('click', generateReport);
+        });
+
+        // Navigate function
+        window.navigateTo = function(page) {
+            window.location.href = page;
+        };
+    </script>
+
+    <style>
+        header,
+        footer {
+            background-color: #0a73d6;
+            color: white;
+            text-align: center;
+            padding: 1em 0;
+            position: fixed;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+        }
+
+        header {
+            top: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        footer {
+            bottom: 0;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        header h1,
+        footer nav {
+            margin: 0;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            margin: 0;
+        }
+
+        .container {
+            margin-top: 80px; /* Adjust according to header height */
+        }
+
+        #reportContainer {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Money Tracker</h1>
+        <button onclick="navigateTo('main.html')">Bell</button>
+    </header>
+    <div class="container">
+        <h3>Generate Report</h3>
+        <div class="form-inline mb-3">
+            <label for="selectYear" class="mr-2">Select Year:</label>
+            <select id="selectYear" class="form-control mr-2">
+                <option value="2024">2024</option>
+                <option value="2025">2025</option>
+                <!-- Add more years as needed -->
+            </select>
+            <label for="selectMonth" class="mr-2">Select Month:</label>
+            <select id="selectMonth" class="form-control mr-2">
+                <option value="01">January</option>
+                <option value="02">February</option>
+                <option value="03">March</option>
+                <option value="04">April</option>
+                <option value="05">May</option>
+                <option value="06">June</option>
+                <option value="07">July</option>
+                <option value="08">August</option>
+                <option value="09">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+            </select>
+            <button id="generateButton" class="btn btn-primary" onclick="generateReport()">Generate Report</button>
+        </div>
+        <div id="reportContainer">
+            <!-- Report will be displayed here -->
+        </div>
+    </div>
+
+    <footer>
+        <nav>
+            <button onclick="navigateTo('charts.html')">Charts</button>
+            <button onclick="navigateTo('add.html')">Add</button>
+            <button onclick="navigateTo('reports.html')">Reports</button>
+        </nav>
+    </footer>
+</body>
+
+</html>
